@@ -19,7 +19,7 @@ def getSiteDomain(url):
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 chrome_ext = "C:\chromedriver_win32\chromedriver.exe"
-keys = ['page_url', 'status_code', 'page_title', 'referrer', 'responses']
+defaultkeys = ['page_url', 'status_code', 'referrer']
 result = list()
 
 try:
@@ -43,17 +43,16 @@ except Exception as e:
 
 pagelist = [[init_url], ['initial url']]
 
+
 for i, page in enumerate(pagelist[0]):
    if i<pagelimit:
       try:      
-         result.append(dict.fromkeys(keys))
+         result.append(dict.fromkeys(defaultkeys))
          valStatusCode = requests.get(page).status_code
          result[i]['page_url'] = page
          result[i]['status_code'] = valStatusCode
-         result[i]['page_title'] = ''
          result[i]['referrer'] = pagelist[1][i]
-         result[i]['responses'] = []
-
+         
          logger.info("({}/{}){}|{}".format((i+1), len(pagelist[0]), valStatusCode, page))
 
          if valStatusCode >= 200 and valStatusCode < 400:
@@ -105,8 +104,11 @@ for i, page in enumerate(pagelist[0]):
                   for req in driver.requests:
                      if req.response.status_code >= 400:
                         contentType = ' | '+req.response.headers['Content-Type'].split(';')[0] if req.response.headers['Content-Type'] is not None else ''
-                        result[i]['responses'].append('[{}{}] {}'.format(req.response.status_code, contentType, req.url))
-
+                        if 'response_error' in result[i].keys():
+                           result[i]['response_error'].append('[{}{}] {}'.format(req.response.status_code, contentType, req.url))
+                        else:
+                           result[i]['response_error'] = ['[{}{}] {}'.format(req.response.status_code, contentType, req.url)]
+                  
                   driver.close()
       except Exception as e:
          logger.error(e)
