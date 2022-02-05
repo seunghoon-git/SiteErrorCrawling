@@ -83,7 +83,7 @@ for i, page in enumerate(pagelist[0]):
                            isExist = 1
                            msg += 'Duplicated link'
                         else:
-                           if last_path.isnumeric() or (any(map(str.isdigit, last_path)) and re.search(r'[0-9a-fA-F]{16}', last_path) is not None):
+                           if last_path.isnumeric() or (any(map(str.isdigit, last_path)) and re.search(r'[0-9a-fA-F-_]{6}', last_path) is not None):
                               check_url = full_url[:full_url.rfind('/')]
                            else:
                               check_url = full_url.split("?")[0]
@@ -108,7 +108,14 @@ for i, page in enumerate(pagelist[0]):
                            result[i]['response_error'].append('[{}{}] {}'.format(req.response.status_code, contentType, req.url))
                         else:
                            result[i]['response_error'] = ['[{}{}] {}'.format(req.response.status_code, contentType, req.url)]
-                  
+
+                  for log in driver.get_log("browser"):
+                     if log['level']=='SEVERE':
+                        if 'console_error' in result[i].keys():
+                           result[i]['console_error'].append(log)
+                        else:
+                           result[i]['console_error'] = [log]     
+
                   driver.close()
       except Exception as e:
          logger.error(e)
