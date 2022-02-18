@@ -55,68 +55,70 @@ for i, page in enumerate(pagelist[0]):
          
          logger.info("({}/{}){}|{}".format((i+1), len(pagelist[0]), valStatusCode, page))
 
-         if valStatusCode >= 200 and valStatusCode < 400:
+         if valStatusCode in range(200, 400) and page.startswith(site_domain):
 
                driver = webdriver.Chrome(chrome_ext)
                driver.get(page)
                result[i]['page_title']=driver.title
             
-               if page.startswith(site_domain):
-                  src = driver.page_source
-                  soup = BeautifulSoup(src)
-                  links = soup.find_all('a', href=True)
+               #if page.startswith(site_domain):
+               src = driver.page_source
+               soup = BeautifulSoup(src)
+               links = soup.find_all('a', href=True)
 
-                  logger.info('{} link(s) found'.format(len(links)))
-                  for link in links:
+               logger.info('{} link(s) found'.format(len(links)))
+
+               # FIND AND QUEUE LINKS
+               for link in links:
+                  msg = '{} ------> '.format(link['href'])
+                  if str(link['href']) == '/' or str(link['href']) == '#':
+                     msg += 'Duplicated link'
+                     continue
+                  else:
+                     isExist = 0
+                     full_url = site_domain+str(link['href']) if str(link['href']).startswith('/') else str(link['href'])
+                     last_path = full_url.split("?")[0].split('/')[-1]
                      
-                     msg = '{} ------> '.format(link['href'])
-
-                     if str(link['href']) == '/' or str(link['href']) == '#':
+                     if pagelist[0].count(full_url)>0:
+                        isExist = 1
                         msg += 'Duplicated link'
-                        continue
                      else:
-                        isExist = 0
-                        full_url = site_domain+str(link['href']) if str(link['href']).startswith('/') else str(link['href'])
-                        last_path = full_url.split("?")[0].split('/')[-1]
+                        if last_path.isnumeric() or (any(map(str.isdigit, last_path)) and re.search(r'[0-9a-fA-F-_]{6}', last_path) is not None):
+                           check_url = full_url[:full_url.rfind('/')]
+                        else:
+                           check_url = full_url.split("?")[0]
                         
-                        if pagelist[0].count(full_url)>0:
+                        similar_urls = filter(lambda x: x.startswith(check_url), pagelist[0])
+                        
+                        if len(list(similar_urls)) >= 10:
                            isExist = 1
-                           msg += 'Duplicated link'
-                        else:
-                           if last_path.isnumeric() or (any(map(str.isdigit, last_path)) and re.search(r'[0-9a-fA-F-_]{6}', last_path) is not None):
-                              check_url = full_url[:full_url.rfind('/')]
-                           else:
-                              check_url = full_url.split("?")[0]
-                           
-                           similar_urls = filter(lambda x: x.startswith(check_url), pagelist[0])
-                           
-                           if len(list(similar_urls)) >= 10:
-                              isExist = 1
-                              msg += "Similar urls are queued in the list 10 times ({}...)".format(check_url)
+                           msg += "Similar urls are queued in the list 10 times ({}...)".format(check_url)
 
-                        if isExist == 0:
-                           msg += "ADDED in the list"
-                           pagelist[0].append(full_url)
-                           pagelist[1].append(page)
-                        
-                        logger.info(msg)
+                     if isExist == 0:
+                        msg += "ADDED in the list"
+                        pagelist[0].append(full_url)
+                        pagelist[1].append(page)
+                     
+                     logger.info(msg)
 
-                  for req in driver.requests:
-                     if req.response.status_code >= 400:
-                        contentType = ' | '+req.response.headers['Content-Type'].split(';')[0] if req.response.headers['Content-Type'] is not None else ''
-                        if 'response_error' in result[i].keys():
-                           result[i]['response_error'].append('[{}{}] {}'.format(req.response.status_code, contentType, req.url))
-                        else:
-                           result[i]['response_error'] = ['[{}{}] {}'.format(req.response.status_code, contentType, req.url)]
+               # CAPTURE REQUEST ERRORS
+               for req in driver.requests:
+                  if req.response.status_code >= 400:
+                     contentType = ' | '+req.response.headers['Content-Type'].split(';')[0] if req.response.headers['Content-Type'] is not None else ''
+                     if 'response_error' in result[i].keys():
+                        result[i]['response_error'].append('[{}{}] {}'.format(req.response.status_code, contentType, req.url))
+                     else:
+                        result[i]['response_error'] = ['[{}{}] {}'.format(req.response.status_code, contentType, req.url)]
+               
+               # CAPTURE CONSOLE ERRORS
+               for log in driver.get_log("browser"):
+                  if log['level']=='SEVERE':
+                     if 'console_error' in result[i].keys():
+                        result[i]['console_error'].append(log)
+                     else:
+                        result[i]['console_error'] = [log]     
 
-                  for log in driver.get_log("browser"):
-                     if log['level']=='SEVERE':
-                        if 'console_error' in result[i].keys():
-                           result[i]['console_error'].append(log)
-                        else:
-                           result[i]['console_error'] = [log]     
-
-                  driver.close()
+               driver.close()
       except Exception as e:
          logger.error(e)
    else:
