@@ -163,3 +163,5 @@ for i, page in enumerate(pagelist[0]):
 f = open(logFileName+".json", "w")
 json.dump(result, f)
 f.close()
+
+logger.handlers.clear()
