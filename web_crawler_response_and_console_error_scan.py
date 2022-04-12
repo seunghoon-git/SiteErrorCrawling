@@ -73,7 +73,10 @@ for i, page in enumerate(pagelist[0]):
          logger.info("({}/{}){}|{}".format((i+1), len(pagelist[0]), valStatusCode, page))
 
          if valStatusCode in range(200, 400) and page.startswith(site_domain):
-            driver = webdriver.Chrome(chrome_ext)
+            options = webdriver.ChromeOptions()
+            options.add_experimental_option('excludeSwitches', ['enable-logging'])
+            driver = webdriver.Chrome(chrome_ext, options=options)
+
             driver.get(page)
             temp_result['page_title']=driver.title
 
